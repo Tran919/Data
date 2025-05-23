@@ -21,18 +21,18 @@ def download_and_extract_tor_expert_bundle(
     archive_name="tor-expert-bundle.tar.gz"
 ):
     archive_path = os.path.join(dest_dir, archive_name)
-    if os.path.isdir(dest_dir) and any(os.scandir(dest_dir)):
+    if os.path.isdir(TOR_DIR) and any(os.scandir(TOR_DIR)):
         print(f"{dest_dir} already exists and not empty - skip downloading.")
         return
 
     os.makedirs(dest_dir, exist_ok=True)
 
-    print(f"Downloading Tor Expert Bundle с {url} ...")
-    os.system(f"curl -L {url} -o {archive_name}")
+    print(f"Downloading Tor Expert Bundle from {url} ...")
+    os.system(f"curl -L {url} -o {archive_path}")
     #urllib.request.urlretrieve(url, archive_path)
     print("Downloading completed.")
 
-    print(f"Untaring {archive_path} в {dest_dir} ...")
+    print(f"Untaring {archive_path} into {dest_dir} ...")
     with tarfile.open(archive_path, "r:gz") as tar:
         tar.extractall(path=dest_dir)
     print("Untaring completed.")
