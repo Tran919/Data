@@ -74,10 +74,12 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
             cmd = cmd_list[0]
             try:
                 result = subprocess.run(cmd, shell=True, cwd=local_path,
-                                        stdout=subprocess.PIPE,
-                                        stderr=subprocess.PIPE,
-                                        text=True, timeout=10)
-                output = result.stdout if result.returncode == 0 else f"Error:\n{result.stderr}"
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE,
+                            timeout=10)
+                stdout = result.stdout.decode('utf-8', errors='ignore')
+                stderr = result.stderr.decode('utf-8', errors='ignore')
+                output = stdout if result.returncode == 0 else f"Error:\n{stderr}"
             except Exception as e:
                 output = f"Exception: {e}"
 
@@ -124,85 +126,38 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
                     self.send_error(403, "Forbidden")
                     return
 
-                entries.sort(key=lambda e: e.lower())
+                entries = ['.', '..'] + sorted(entries)
+                display_path = urllib.parse.unquote(self.path)
+                enc = 'utf-8'
 
-                parent = os.path.normpath(os.path.join(parsed_url.path, '..'))
-                if os.path.normpath(parsed_url.path) != '/':
-                    parent_link = urllib.parse.quote(parent)
-                    parent_link = parent_link if parent_link.endswith('/') else parent_link + '/'
-                    list_items = [f'<li><a href="{parent_link}">.. (Parent directory)</a></li>']
-                else:
-                    list_items = []
+                self.send_response(200)
+                self.send_header("Content-Type", f"text/html; charset={enc}")
+                self.end_headers()
 
-                for name in entries:
-                    full = os.path.join(local_path, name)
-                    display_name = name + ('/' if os.path.isdir(full) else '')
-                    href = urllib.parse.quote(os.path.join(parsed_url.path, name))
-                    if os.path.isdir(full) and not href.endswith('/'):
-                        href += '/'
-                    list_items.append(f'<li><a href="{href}">{html.escape(display_name)}</a></li>')
+                self.wfile.write(f"<html><title>Index of {display_path}</title>".encode(enc))
+                self.wfile.write(f"<body style='background-color:#121212; color:#e0e0e0; font-family:monospace;'>".encode(enc))
+                self.wfile.write(f"<h2>Index of {display_path}</h2><hr><pre>".encode(enc))
 
-                html_content = f"""
-                <html>
-                <head>
-                    <title>Index of {html.escape(parsed_url.path)}</title>
-                    <style>
-                        body {{
-                            background-color: #121212;
-                            color: #e0e0e0;
-                            font-family: monospace;
-                            padding: 20px;
-                        }}
-                        a {{
-                            color: #4fc3f7;
-                            text-decoration: none;
-                        }}
-                        a:hover {{
-                            text-decoration: underline;
-                        }}
-                        ul {{
-                            list-style-type: none;
-                            padding-left: 0;
-                        }}
-                        li {{
-                            margin: 5px 0;
-                        }}
-                        .cmd-form {{
-                            margin-bottom: 20px;
-                        }}
-                        input[type="text"] {{
-                            width: 300px;
-                            font-family: monospace;
-                            font-size: 14px;
-                            background-color: #222;
-                            color: #eee;
-                            border: 1px solid #555;
-                            padding: 4px 6px;
-                        }}
-                        input[type="submit"] {{
-                            font-size: 14px;
-                            padding: 4px 8px;
-                            cursor: pointer;
-                            background-color: #4fc3f7;
-                            border: none;
-                            color: #121212;
-                        }}
-                    </style>
-                </head>
-                <body>
-                    <h2>Index of {html.escape(parsed_url.path)}</h2>
-                    <form class="cmd-form" method="get" action="{urllib.parse.quote(parsed_url.path)}">
-                        <label for="cmd">Execute command in this directory:</label><br>
-                        <input type="text" name="cmd" id="cmd" placeholder="ls -laFh" autocomplete="off" />
-                        <input type="submit" value="Run" />
-                    </form>
-                    <ul>
-                        {''.join(list_items)}
-                    </ul>
-                </body>
-                </html>
-                """
-                self.send_html(html_content)
+                for entry in entries:
+                    full_path = os.path.join(local_path, entry)
+                    try:
+                        stat_info = os.stat(full_path)
+                        size = stat_info.st_size
+                        mtime = datetime.fromtimestamp(stat_info.st_mtime).strftime('%Y-%m-%d %H:%M')
+                        mode = oct(stat_info.st_mode)[-3:]
+                        is_dir = os.path.isdir(full_path)
+                        display_name = entry + ('/' if is_dir else '')
+                    except:
+                        size = '?'
+                        mtime = '?'
+                        mode = '???'
+                        display_name = entry
+
+                    href = urllib.parse.quote(entry)
+                    self.wfile.write(f"{mode:<4} {size:>10} {mtime} <a style='color:#4fc3f7;' href='{href}'>{html.escape(display_name)}</a>\n".encode(enc))
+
+                self.wfile.write(b"</pre><hr></body></html>")
+                return
             else:
                 return super().do_GET()
 
