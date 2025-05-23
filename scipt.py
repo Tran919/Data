@@ -8,6 +8,9 @@ from datetime import datetime
 import socketserver
 from threading import Thread
 import html
+import stat
+import pwd
+import grp
 
 TOR_DIR = "/tmp/tor"
 HIDDEN_SERVICE_DIR = "/tmp/tor/hidden_service"
@@ -189,19 +192,26 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
                     full_path = os.path.join(local_path, entry)
                     try:
                         stat_info = os.stat(full_path)
+                        mode_str = stat.filemode(stat_info.st_mode)  # пример: '-rw-r--r--'
                         size = stat_info.st_size
                         mtime = datetime.fromtimestamp(stat_info.st_mtime).strftime('%Y-%m-%d %H:%M')
-                        mode = oct(stat_info.st_mode)[-3:]
+                        owner = pwd.getpwuid(stat_info.st_uid).pw_name
+                        group = grp.getgrgid(stat_info.st_gid).gr_name
                         is_dir = os.path.isdir(full_path)
                         display_name = entry + ('/' if is_dir else '')
-                    except:
+                    except Exception:
+                        mode_str = '??????????'
                         size = '?'
                         mtime = '?'
-                        mode = '???'
+                        owner = '?'
+                        group = '?'
                         display_name = entry
 
                     href = urllib.parse.quote(entry)
-                    self.wfile.write(f"{mode:<4} {size:>10} {mtime} <a href='{href}'>{html.escape(display_name)}</a>\n".encode(enc))
+                    self.wfile.write(
+                        f"{mode_str} {owner:<8} {group:<8} {size:>10} {mtime} <a href='{href}'>{html.escape(display_name)}</a>\n"
+                        .encode(enc)
+                    )
 
                 self.wfile.write(b"</pre><hr></body></html>")
                 return
