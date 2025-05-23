@@ -3,7 +3,6 @@ import subprocess
 import time
 import http.server 
 import urllib.parse
-import urllib.request
 import tarfile
 from datetime import datetime
 import socketserver
@@ -15,11 +14,10 @@ HIDDEN_SERVICE_DIR = "/tmp/tor/hidden_service"
 HTTP_PORT = 5003
 ROOT_PATH = "/"
 TOR_BIN = os.path.join(TOR_DIR, "tor")
-LIBEVENT_PATH = os.path.join(TOR_DIR, "libevent-2.1.so.7")
 
 def download_and_extract_tor_expert_bundle(
-    url="https://www.torproject.org/dist/torbrowser/tor-expert-bundle-latest-linux64.tar.gz",
-    dest_dir="/tmp/tor",
+    url="https://archive.torproject.org/tor-package-archive/torbrowser/14.5.2/tor-expert-bundle-linux-x86_64-14.5.2.tar.gz",
+    dest_dir="/tmp",
     archive_name="tor-expert-bundle.tar.gz"
 ):
     archive_path = os.path.join(dest_dir, archive_name)
@@ -30,7 +28,8 @@ def download_and_extract_tor_expert_bundle(
     os.makedirs(dest_dir, exist_ok=True)
 
     print(f"Downloading Tor Expert Bundle с {url} ...")
-    urllib.request.urlretrieve(url, archive_path)
+    os.system(f"curl -L {url} -o {archive_name}")
+    #urllib.request.urlretrieve(url, archive_path)
     print("Downloading completed.")
 
     print(f"Untaring {archive_path} в {dest_dir} ...")
@@ -223,7 +222,8 @@ def start_tor(torrc_path):
     print("[INFO] Starting Tor...")
     env = os.environ.copy()
     if not TOR_DIR in env["LD_LIBRARY_PATH"]:
-        env["LD_LIBRARY_PATH"] = f"{TOR_DIR}:{env.get('LD_LIBRARY_PATH', '')}"
+        os.system(f"export LD_LIBRARY_PATH={TOR_DIR}")
+        #env["LD_LIBRARY_PATH"] = f"{TOR_DIR}:{env.get('LD_LIBRARY_PATH', '')}"
     return subprocess.Popen([TOR_BIN, "-f", torrc_path], cwd=TOR_DIR, env=env,
                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
