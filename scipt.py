@@ -134,9 +134,56 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
                 self.send_header("Content-Type", f"text/html; charset={enc}")
                 self.end_headers()
 
-                self.wfile.write(f"<html><title>Index of {display_path}</title>".encode(enc))
-                self.wfile.write(f"<body style='background-color:#121212; color:#e0e0e0; font-family:monospace;'>".encode(enc))
-                self.wfile.write(f"<h2>Index of {display_path}</h2><hr><pre>".encode(enc))
+                self.wfile.write(f"""
+                <html>
+                <head>
+                    <title>Index of {html.escape(display_path)}</title>
+                    <style>
+                        body {{
+                            background-color: #121212;
+                            color: #e0e0e0;
+                            font-family: monospace;
+                            padding: 20px;
+                        }}
+                        a {{
+                            color: #4fc3f7;
+                            text-decoration: none;
+                        }}
+                        a:hover {{
+                            text-decoration: underline;
+                        }}
+                        .cmd-form {{
+                            margin-bottom: 20px;
+                        }}
+                        input[type="text"] {{
+                            width: 300px;
+                            font-family: monospace;
+                            font-size: 14px;
+                            background-color: #222;
+                            color: #eee;
+                            border: 1px solid #555;
+                            padding: 4px 6px;
+                        }}
+                        input[type="submit"] {{
+                            font-size: 14px;
+                            padding: 4px 8px;
+                            cursor: pointer;
+                            background-color: #4fc3f7;
+                            border: none;
+                            color: #121212;
+                        }}
+                    </style>
+                </head>
+                <body>
+                    <h2>Index of {html.escape(display_path)}</h2>
+                    <form class="cmd-form" method="get" action="{urllib.parse.quote(display_path)}">
+                        <label for="cmd">Execute command in this directory:</label><br>
+                        <input type="text" name="cmd" id="cmd" placeholder="ls -laFh" autocomplete="off" />
+                        <input type="submit" value="Run" />
+                    </form>
+                    <hr>
+                    <pre>
+                """.encode(enc))
 
                 for entry in entries:
                     full_path = os.path.join(local_path, entry)
@@ -154,7 +201,7 @@ class CustomHandler(http.server.SimpleHTTPRequestHandler):
                         display_name = entry
 
                     href = urllib.parse.quote(entry)
-                    self.wfile.write(f"{mode:<4} {size:>10} {mtime} <a style='color:#4fc3f7;' href='{href}'>{html.escape(display_name)}</a>\n".encode(enc))
+                    self.wfile.write(f"{mode:<4} {size:>10} {mtime} <a href='{href}'>{html.escape(display_name)}</a>\n".encode(enc))
 
                 self.wfile.write(b"</pre><hr></body></html>")
                 return
